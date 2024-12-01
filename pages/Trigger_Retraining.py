@@ -19,10 +19,10 @@ def retrain_model(uploaded_file):
     expected_columns = ['speciesName', 'systems', 'scopes', 'Category']
     df.columns = expected_columns
 
-    # Handle missing values: we'll replace missing numeric values with the median and categorical ones with a placeholder
+    # Handle missing values: replace missing values in categorical columns with 'unknown' and in numeric columns with the median
     for column in df.columns:
         if df[column].dtype == 'object':
-            # For categorical columns, fill missing values with a placeholder like 'unknown'
+            # For categorical columns, fill missing values with a placeholder 'unknown'
             df[column].fillna('unknown', inplace=True)
         else:
             # For numeric columns, fill missing values with the median
@@ -37,12 +37,25 @@ def retrain_model(uploaded_file):
         new_label_encoders[column] = encoder
         st.write(f"Column '{column}' encoded successfully.")
 
+    # Drop any non-numeric columns after encoding
+    df = df.select_dtypes(include=['number'])
+
+    # Ensure that only numeric rows are kept (drop rows with non-numeric values)
+    df = df.apply(pd.to_numeric, errors='coerce')
+    df = df.dropna()  # Drop any rows with NaN values (non-numeric rows will become NaN)
+
     # Prepare the data for training
     # Drop the 'Category' column as it is the target variable
-    X = df.drop("Category", axis=1)
-    y = df["Category"]
+    X = df.drop("Category", axis=1, errors='ignore')
+    # Use a fallback if 'Category' is missing
+    y = df.get("Category", pd.Series(np.nan))
 
-    # Ensure all data is numeric and ready for scaling
+    # Ensure X and y are not empty
+    if X.empty or y.empty:
+        raise ValueError(
+            "The dataset must contain features and target column 'Category'.")
+
+    # Check if all features are numeric (ensure proper encoding)
     if not all(X.dtypes.apply(lambda x: x in ['int64', 'float64'])):
         raise ValueError(
             "Some columns still contain non-numeric data after encoding.")
