@@ -10,6 +10,14 @@ scaler = joblib.load("scaler.pkl")
 label_encoders = joblib.load("label_encoders.pkl")
 
 
+def safe_transform(encoder, value):
+    """ Safely transforms the value using the encoder, returns 'New to model' for unseen values. """
+    if value in encoder.classes_:
+        return encoder.transform([value])[0]
+    else:
+        return 'New to model'
+
+
 def main():
     st.title("Model Prediction")
     st.write("Use the model to predict wildlife categories based on input data.")
@@ -23,28 +31,30 @@ def main():
     if st.button("Predict"):
         try:
             # Check if the input values exist in label encoders
-            if species_name not in label_encoders["speciesName"].classes_:
+            species_index = safe_transform(
+                label_encoders["speciesName"], species_name)
+            if species_index == 'New to model':
                 st.warning(
                     f"Species '{species_name}' is not recognized. Returning 'New to model'.")
                 st.success("Predicted Category: New to model")
                 return
-            if systems not in label_encoders["systems"].classes_:
+
+            system_index = safe_transform(label_encoders["systems"], systems)
+            if system_index == 'New to model':
                 st.warning(
                     f"System '{systems}' is not recognized. Returning 'New to model'.")
                 st.success("Predicted Category: New to model")
                 return
-            if scopes not in label_encoders["scopes"].classes_:
+
+            scope_index = safe_transform(label_encoders["scopes"], scopes)
+            if scope_index == 'New to model':
                 st.warning(
                     f"Scope '{scopes}' is not recognized. Returning 'New to model'.")
                 st.success("Predicted Category: New to model")
                 return
 
             # Encode and scale the input data
-            input_data = [[
-                label_encoders["speciesName"].transform([species_name])[0],
-                label_encoders["systems"].transform([systems])[0],
-                label_encoders["scopes"].transform([scopes])[0]
-            ]]
+            input_data = [[species_index, system_index, scope_index]]
             scaled_data = scaler.transform(input_data)
             prediction = model.predict(scaled_data)
             predicted_category_index = prediction.argmax()
@@ -74,26 +84,28 @@ def main():
                 # Apply encoding and scaling for each row
                 for idx, row in df.iterrows():
                     try:
-                        # Check for unseen labels and display a warning if any
-                        if row["speciesName"] not in label_encoders["speciesName"].classes_:
+                        # Safely encode the values
+                        species_index = safe_transform(
+                            label_encoders["speciesName"], row["speciesName"])
+                        if species_index == 'New to model':
                             df.at[idx, "Predicted Category"] = "New to model"
                             continue
-                        if row["systems"] not in label_encoders["systems"].classes_:
+
+                        system_index = safe_transform(
+                            label_encoders["systems"], row["systems"])
+                        if system_index == 'New to model':
                             df.at[idx, "Predicted Category"] = "New to model"
                             continue
-                        if row["scopes"] not in label_encoders["scopes"].classes_:
+
+                        scope_index = safe_transform(
+                            label_encoders["scopes"], row["scopes"])
+                        if scope_index == 'New to model':
                             df.at[idx, "Predicted Category"] = "New to model"
                             continue
 
                         # Encode and scale the input data
-                        input_data = [[
-                            label_encoders["speciesName"].transform(
-                                [row["speciesName"]])[0],
-                            label_encoders["systems"].transform(
-                                [row["systems"]])[0],
-                            label_encoders["scopes"].transform(
-                                [row["scopes"]])[0]
-                        ]]
+                        input_data = [
+                            [species_index, system_index, scope_index]]
                         scaled_data = scaler.transform(input_data)
                         prediction = model.predict(scaled_data)
                         predicted_category_index = prediction.argmax()
