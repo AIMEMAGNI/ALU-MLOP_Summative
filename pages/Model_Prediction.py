@@ -1,4 +1,5 @@
 import joblib
+import numpy as np
 import pandas as pd
 import streamlit as st
 import tensorflow as tf
@@ -9,6 +10,15 @@ scaler = joblib.load("scaler.pkl")
 label_encoders = joblib.load("label_encoders.pkl")
 
 
+def safe_transform(encoder, value, default="New to model"):
+    """Handle unseen categories by assigning a default label."""
+    try:
+        return encoder.transform([value])[0]
+    except ValueError:
+        # If the value is unseen, return a default value
+        return encoder.transform([default])[0]
+
+
 def main():
     st.title("Model Prediction")
     st.write("Use the model to predict wildlife categories based on input data.")
@@ -16,21 +26,25 @@ def main():
     # Single prediction
     st.subheader("Single Prediction")
     species_name = st.text_input("Species Name (e.g., Panthera tigris):")
-    systems = st.selectbox(
-        "System Type:", label_encoders["systems"].classes_)
+    systems = st.selectbox("System Type:", label_encoders["systems"].classes_)
     scopes = st.selectbox("Scope Type:", label_encoders["scopes"].classes_)
 
     if st.button("Predict"):
         # Preprocess inputs
         try:
             input_data = [[
-                label_encoders["speciesName"].transform([species_name])[0],
-                label_encoders["systems"].transform([systems])[0],
-                label_encoders["scopes"].transform([scopes])[0]
+                safe_transform(label_encoders["speciesName"], species_name),
+                safe_transform(label_encoders["systems"], systems),
+                safe_transform(label_encoders["scopes"], scopes)
             ]]
             scaled_data = scaler.transform(input_data)
             prediction = model.predict(scaled_data)
-            st.success(f"Predicted Category: {prediction.argmax()}")
+            predicted_category_index = prediction.argmax()
+
+            # Decode the predicted label
+            predicted_category = label_encoders["systems"].inverse_transform(
+                [predicted_category_index])[0]
+            st.success(f"Predicted Category: {predicted_category}")
         except KeyError as e:
             st.error(f"Error: {e}. Ensure that the inputs are valid.")
 
@@ -41,23 +55,31 @@ def main():
         df = pd.read_csv(uploaded_file)
         st.write("Preview of Uploaded Data:")
         st.dataframe(df.head())
-        
+
         # Check for necessary columns
         required_columns = ['speciesName', 'systems', 'scopes']
         if all(col in df.columns for col in required_columns):
             if st.button("Run Bulk Predictions"):
                 # Encode categorical columns
                 for col in required_columns:
-                    df[col] = label_encoders[col].transform(df[col])
+                    df[col] = df[col].apply(
+                        lambda x: safe_transform(label_encoders[col], x))
+
                 scaled_data = scaler.transform(df[required_columns])
                 predictions = model.predict(scaled_data)
-                df["Predicted Category"] = predictions.argmax(axis=1)
+                predicted_categories = np.argmax(predictions, axis=1)
+
+                # Decode predicted categories
+                df["Predicted Category"] = label_encoders["systems"].inverse_transform(
+                    predicted_categories)
+
                 st.write("Predictions:")
                 st.dataframe(df)
                 st.download_button("Download Predictions", df.to_csv(
                     index=False), "predictions.csv")
         else:
-            st.error(f"Uploaded CSV must contain the following columns: {required_columns}")
+            st.error(
+                f"Uploaded CSV must contain the following columns: {required_columns}")
 
 
 if __name__ == "__main__":
