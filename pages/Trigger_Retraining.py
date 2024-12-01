@@ -9,10 +9,10 @@ label_encoders = joblib.load("label_encoders.pkl")
 
 
 def encode_data(df):
-    """ Encodes categorical columns using the pre-loaded label encoders. """
-    # Encode each column using the respective label encoder
+    """Encodes categorical columns using the pre-loaded label encoders."""
     for column, encoder in label_encoders.items():
         if column in df.columns:
+            # Apply transformation and handle unknown values by assigning -1
             df[column] = df[column].apply(lambda x: encoder.transform([x])[
                                           0] if x in encoder.classes_ else -1)
     return df
@@ -22,12 +22,17 @@ def retrain_model(uploaded_df):
     # Load the existing model
     model = load_model("model1_simple.h5")
 
-    # Encode categorical columns
+    # Encode categorical columns first
     uploaded_df = encode_data(uploaded_df)
 
     # Prepare data for training
     X = uploaded_df.drop("Category", axis=1)
     y = uploaded_df["Category"]
+
+    # Check if all features are numeric after encoding (for scaling)
+    if not all(X.dtypes.apply(lambda x: x in ['int64', 'float64'])):
+        raise ValueError(
+            "Some columns still contain non-numeric data after encoding.")
 
     # Scale the features
     X_scaled = scaler.fit_transform(X)
