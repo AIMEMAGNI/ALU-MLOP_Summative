@@ -1,5 +1,6 @@
 import streamlit as st
 
+
 def main():
     st.title("About Wildlife Insight")
     st.markdown("""
@@ -31,11 +32,13 @@ def main():
     st.markdown("""
     ### Contribute or Report Issues  
     If you encounter issues or have suggestions, feel free to contribute:
-    - **GitHub Repository**: [Wildlife Insight Repo](https://github.com/your-repo)
-    - **Support Email**: support@wildlifeinsight.com
+    - **GitHub Repository**: [Wildlife Insight Repo](https://github.com/AIMEMAGNI/ALU-MLOP_Summative)
+    - **Support Email**: a.ndayishim@alustudent.com
     """)
 
-    st.image("https://source.unsplash.com/featured/?conservation", caption="AI for Conservation")
+    st.image("https://iucn-members.us/wp-content/uploads/2024/01/KenyaElephants-RickBerstrom-CCbyND.jpg",
+             caption="AI for Conservation")
+
 
 if __name__ == "__main__":
     main()

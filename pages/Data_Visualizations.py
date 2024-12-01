@@ -1,33 +1,34 @@
-import matplotlib.pyplot as plt
-import pandas as pd
-import seaborn as sns
+import os
+
 import streamlit as st
 
 
 def main():
+    # Set the app title
     st.title("Data Visualizations")
-    st.write("Explore and visualize your data.")
 
-    uploaded_file = st.file_uploader("Upload a Dataset", type="csv")
-    if uploaded_file:
-        df = pd.read_csv(uploaded_file)
-        st.write("Preview of Data:")
-        st.dataframe(df.head())
+    # Print current working directory to ensure correct path
+    st.write(f"Current working directory: {os.getcwd()}")
 
-        # Feature selection
-        feature = st.selectbox("Select a feature to visualize:", df.columns)
-        if feature:
-            st.subheader(f"Visualization of {feature}")
-            fig, ax = plt.subplots()
-            sns.histplot(df[feature], kde=True, ax=ax)
-            st.pyplot(fig)
+    # Specify the directory containing the images (absolute or relative)
+    image_dir = os.path.join(os.getcwd(), "visualizations")
 
-        # Correlation heatmap
-        if st.checkbox("Show Correlation Heatmap"):
-            st.subheader("Correlation Heatmap")
-            fig, ax = plt.subplots()
-            sns.heatmap(df.corr(), annot=True, cmap="coolwarm", ax=ax)
-            st.pyplot(fig)
+    # List of image file names (no need for "visualizations/" prefix, as the directory is handled)
+    image_files = [
+        "category_distribution.png",
+        "correlation_heatmap.png",
+        "top_species_names.png"
+    ]
+
+    # Display images
+    st.subheader("Visualizations")
+    for img_file in image_files:
+        img_path = os.path.join(image_dir, img_file)  # Correct path generation
+        try:
+            st.image(img_path, caption=img_file.split(
+                '.')[0], use_column_width=True)
+        except FileNotFoundError:
+            st.error(f"Image {img_file} not found in {img_path}.")
 
 
 if __name__ == "__main__":
