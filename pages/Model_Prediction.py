@@ -85,7 +85,7 @@ def main():
         if all(col in df.columns for col in required_columns):
             if st.button("Run Bulk Predictions"):
                 # Manually add the "Predicted Category" column with random values
-                categories = ["Vulnerable", "Endangered", "Low Risk"]
+                categories = ["Vulnerable", "Endangered", "Lower Risk"]
                 df['Predicted Category'] = [random.choice(
                     categories) for _ in range(len(df))]
 
