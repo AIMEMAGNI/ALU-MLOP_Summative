@@ -8,13 +8,22 @@ scaler = joblib.load("scaler.pkl")
 label_encoders = joblib.load("label_encoders.pkl")
 
 
+def encode_column_with_encoder(df, column, encoder):
+    """Encodes a single column using its specific encoder."""
+    # Apply transformation and handle unknown values by assigning -1
+    df[column] = df[column].apply(
+        lambda x: encoder.transform([x])[0] if x in encoder.classes_ else -1
+    )
+    return df
+
+
 def encode_data(df):
     """Encodes categorical columns using the pre-loaded label encoders."""
     for column, encoder in label_encoders.items():
         if column in df.columns:
-            # Apply transformation and handle unknown values by assigning -1
-            df[column] = df[column].apply(lambda x: encoder.transform([x])[
-                                          0] if x in encoder.classes_ else -1)
+            df = encode_column_with_encoder(df, column, encoder)
+            # Confirm the encoding of each column
+            st.write(f"Column '{column}' encoded successfully.")
     return df
 
 
