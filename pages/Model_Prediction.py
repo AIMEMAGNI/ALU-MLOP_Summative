@@ -3,22 +3,11 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 import tensorflow as tf
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import LabelEncoder, StandardScaler
 
 # Load pre-trained model and preprocessing objects
 model = tf.keras.models.load_model("model1_simple.h5")
 scaler = joblib.load("scaler.pkl")
 label_encoders = joblib.load("label_encoders.pkl")
-
-
-def safe_transform(encoder, value, default="New to model"):
-    """Handle unseen categories by assigning a default label."""
-    try:
-        return encoder.transform([value])[0]
-    except ValueError:
-        # If the value is unseen, return a default value
-        return encoder.transform([default])[0]
 
 
 def main():
@@ -32,12 +21,12 @@ def main():
     scopes = st.selectbox("Scope Type:", label_encoders["scopes"].classes_)
 
     if st.button("Predict"):
-        # Preprocess inputs
         try:
+            # Encode and scale the input data
             input_data = [[
-                safe_transform(label_encoders["speciesName"], species_name),
-                safe_transform(label_encoders["systems"], systems),
-                safe_transform(label_encoders["scopes"], scopes)
+                label_encoders["speciesName"].transform([species_name])[0],
+                label_encoders["systems"].transform([systems])[0],
+                label_encoders["scopes"].transform([scopes])[0]
             ]]
             scaled_data = scaler.transform(input_data)
             prediction = model.predict(scaled_data)
@@ -47,14 +36,12 @@ def main():
             predicted_category = label_encoders["Category"].inverse_transform(
                 [predicted_category_index])[0]
 
-            # If the result is "New to model", display it as a positive result
-            if predicted_category == "New to model":
-                st.success(
-                    f"Predicted Category: {predicted_category}", icon="✅")
-            else:
-                st.success(f"Predicted Category: {predicted_category}")
-        except KeyError as e:
-            st.error(f"Error: {e}. Ensure that the inputs are valid.")
+            st.success(f"Predicted Category: {predicted_category}")
+
+        except Exception as e:
+            # If error occurs (e.g., unseen labels), return "New to model"
+            st.warning(f"Prediction failed: {e}. Returning 'New to model'.")
+            st.success("Predicted Category: New to model")
 
     # Bulk prediction
     st.subheader("Bulk Prediction")
@@ -68,25 +55,31 @@ def main():
         required_columns = ['speciesName', 'systems', 'scopes']
         if all(col in df.columns for col in required_columns):
             if st.button("Run Bulk Predictions"):
-                # Encode categorical columns for the bulk data
-                for col in required_columns:
-                    df[col] = df[col].apply(
-                        lambda x: safe_transform(label_encoders[col], x))
+                # Apply encoding and scaling for each row
+                for idx, row in df.iterrows():
+                    try:
+                        input_data = [[
+                            label_encoders["speciesName"].transform(
+                                [row["speciesName"]])[0],
+                            label_encoders["systems"].transform(
+                                [row["systems"]])[0],
+                            label_encoders["scopes"].transform(
+                                [row["scopes"]])[0]
+                        ]]
+                        scaled_data = scaler.transform(input_data)
+                        prediction = model.predict(scaled_data)
+                        predicted_category_index = prediction.argmax()
 
-                # Scaling the features
-                scaled_data = scaler.transform(df[required_columns])
-                predictions = model.predict(scaled_data)
-                predicted_categories = np.argmax(predictions, axis=1)
+                        # Decode the predicted category
+                        predicted_category = label_encoders["Category"].inverse_transform(
+                            [predicted_category_index])[0]
+                        df.at[idx, "Predicted Category"] = predicted_category
 
-                # Decode predicted categories
-                df["Predicted Category"] = label_encoders["Category"].inverse_transform(
-                    predicted_categories)
+                    except Exception as e:
+                        # If error occurs, assign "New to model"
+                        df.at[idx, "Predicted Category"] = "New to model"
+                        continue
 
-                # Ensure "New to model" is handled correctly in the bulk predictions
-                df["Predicted Category"] = df["Predicted Category"].apply(
-                    lambda x: x if x != "New to model" else "New to model")
-
-                # Display results
                 st.write("Predictions:")
                 st.dataframe(df)
                 st.download_button("Download Predictions", df.to_csv(
