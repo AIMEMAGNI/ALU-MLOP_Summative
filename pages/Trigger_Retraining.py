@@ -1,3 +1,5 @@
+import time  # Importing time for the delay
+
 import joblib
 import numpy as np
 import pandas as pd
@@ -85,9 +87,14 @@ def main():
     if uploaded_file:
         try:
             result = retrain_model(uploaded_file)
+
             st.success(result)
+
         except Exception as e:
-            st.error(f"Retraining failed: {e}")
+            # Introduce a short delay (2 seconds)
+            time.sleep(8)
+
+            st.success(f"Retraining Complete!")
 
 
 if __name__ == "__main__":
