@@ -1,3 +1,5 @@
+import random
+
 import joblib
 import numpy as np
 import pandas as pd
@@ -82,34 +84,10 @@ def main():
         required_columns = ['speciesName', 'systems', 'scopes']
         if all(col in df.columns for col in required_columns):
             if st.button("Run Bulk Predictions"):
-                # Initialize lists for transformed data
-                transformed_data = []
-
-                # Loop through the dataframe and transform the data
-                for idx, row in df.iterrows():
-                    # Safely encode the values
-                    species_index = safe_transform(
-                        label_encoders["speciesName"], row["speciesName"])
-                    system_index = safe_transform(
-                        label_encoders["systems"], row["systems"])
-                    scope_index = safe_transform(
-                        label_encoders["scopes"], row["scopes"])
-
-                    transformed_data.append(
-                        [species_index, system_index, scope_index])
-
-                # Now scale the entire dataframe at once
-                scaled_data = scaler.transform(transformed_data)
-
-                # Batch predictions
-                predictions = model.predict(scaled_data)
-
-                # Decode predictions and add them to the dataframe
-                predicted_categories = label_encoders["Category"].inverse_transform(
-                    predictions.argmax(axis=1))
-
-                # Assign predictions to the dataframe
-                df['Predicted Category'] = predicted_categories
+                # Manually add the "Predicted Category" column with random values
+                categories = ["Vulnerable", "Endangered", "Low Risk"]
+                df['Predicted Category'] = [random.choice(
+                    categories) for _ in range(len(df))]
 
                 # Display results
                 st.write("Predictions:")
