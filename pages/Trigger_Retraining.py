@@ -2,14 +2,11 @@ import joblib
 import numpy as np
 import pandas as pd
 import streamlit as st
+from sklearn.preprocessing import LabelEncoder, StandardScaler
 from tensorflow.keras.models import load_model
 
 
 def retrain_model(uploaded_file):
-    # Load pre-trained model and tools
-    scaler = joblib.load("scaler.pkl")
-    label_encoders = joblib.load("label_encoders.pkl")
-
     # Load the existing model
     model = load_model("model1_simple.h5")
 
@@ -18,17 +15,17 @@ def retrain_model(uploaded_file):
     st.write("Preview of Uploaded Data:")
     st.dataframe(df.head())
 
-    # Encode categorical columns using the pre-loaded label encoders
-    for column, encoder in label_encoders.items():
-        if column in df.columns:
-            # Encode each column using its specific encoder
-            def safe_encode(x):
-                try:
-                    return encoder.transform([x])[0]
-                except ValueError:
-                    return -1  # Handle unseen categories by assigning -1
-            df[column] = df[column].apply(safe_encode)
-            st.write(f"Column '{column}' encoded successfully.")
+    # Define new encoders and scaler
+    new_label_encoders = {}
+    new_scaler = StandardScaler()
+
+    # Encode categorical columns using new encoders
+    for column in df.select_dtypes(include=['object']).columns:
+        # Fit new label encoder to each categorical column
+        encoder = LabelEncoder()
+        df[column] = encoder.fit_transform(df[column].astype(str))
+        new_label_encoders[column] = encoder
+        st.write(f"Column '{column}' encoded successfully.")
 
     # Prepare the data for training
     # Ignore errors if 'Category' column is missing
@@ -46,17 +43,18 @@ def retrain_model(uploaded_file):
         raise ValueError(
             "Some columns still contain non-numeric data after encoding.")
 
-    # Scale the features
-    try:
-        X_scaled = scaler.fit_transform(X)
-    except ValueError as e:
-        raise ValueError(f"Scaling failed: {e}")
+    # Scale the features using the new scaler
+    X_scaled = new_scaler.fit_transform(X)
 
     # Retrain the model
     model.fit(X_scaled, y, epochs=10, batch_size=32)
 
     # Save updated model
     model.save("retrained_model1_simple.h5")
+
+    # Save the new label encoders and scaler
+    joblib.dump(new_scaler, "new_scaler.pkl")
+    joblib.dump(new_label_encoders, "new_label_encoders.pkl")
 
     return "Retraining completed successfully!"
 
