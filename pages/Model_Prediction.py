@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 import tensorflow as tf
+from sklearn.preprocessing import LabelEncoder
 
 # Load pre-trained model and preprocessing objects
 model = tf.keras.models.load_model("model1_simple.h5")
@@ -81,45 +82,36 @@ def main():
         required_columns = ['speciesName', 'systems', 'scopes']
         if all(col in df.columns for col in required_columns):
             if st.button("Run Bulk Predictions"):
-                # Apply encoding and scaling for each row
+                # Initialize lists for transformed data
+                transformed_data = []
+
+                # Loop through the dataframe and transform the data
                 for idx, row in df.iterrows():
-                    try:
-                        # Safely encode the values
-                        species_index = safe_transform(
-                            label_encoders["speciesName"], row["speciesName"])
-                        if species_index == 'New to model':
-                            df.at[idx, "Predicted Category"] = "New to model"
-                            continue
+                    # Safely encode the values
+                    species_index = safe_transform(
+                        label_encoders["speciesName"], row["speciesName"])
+                    system_index = safe_transform(
+                        label_encoders["systems"], row["systems"])
+                    scope_index = safe_transform(
+                        label_encoders["scopes"], row["scopes"])
 
-                        system_index = safe_transform(
-                            label_encoders["systems"], row["systems"])
-                        if system_index == 'New to model':
-                            df.at[idx, "Predicted Category"] = "New to model"
-                            continue
+                    transformed_data.append(
+                        [species_index, system_index, scope_index])
 
-                        scope_index = safe_transform(
-                            label_encoders["scopes"], row["scopes"])
-                        if scope_index == 'New to model':
-                            df.at[idx, "Predicted Category"] = "New to model"
-                            continue
+                # Now scale the entire dataframe at once
+                scaled_data = scaler.transform(transformed_data)
 
-                        # Encode and scale the input data
-                        input_data = [
-                            [species_index, system_index, scope_index]]
-                        scaled_data = scaler.transform(input_data)
-                        prediction = model.predict(scaled_data)
-                        predicted_category_index = prediction.argmax()
+                # Batch predictions
+                predictions = model.predict(scaled_data)
 
-                        # Decode the predicted category
-                        predicted_category = label_encoders["Category"].inverse_transform(
-                            [predicted_category_index])[0]
-                        df.at[idx, "Predicted Category"] = predicted_category
+                # Decode predictions and add them to the dataframe
+                predicted_categories = label_encoders["Category"].inverse_transform(
+                    predictions.argmax(axis=1))
 
-                    except Exception as e:
-                        # Handle errors by assigning "New to model"
-                        df.at[idx, "Predicted Category"] = "New to model"
-                        continue
+                # Assign predictions to the dataframe
+                df['Predicted Category'] = predicted_categories
 
+                # Display results
                 st.write("Predictions:")
                 st.dataframe(df)
                 st.download_button("Download Predictions", df.to_csv(
