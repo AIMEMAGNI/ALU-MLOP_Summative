@@ -22,6 +22,23 @@ def main():
 
     if st.button("Predict"):
         try:
+            # Check if the input values exist in label encoders
+            if species_name not in label_encoders["speciesName"].classes_:
+                st.warning(
+                    f"Species '{species_name}' is not recognized. Returning 'New to model'.")
+                st.success("Predicted Category: New to model")
+                return
+            if systems not in label_encoders["systems"].classes_:
+                st.warning(
+                    f"System '{systems}' is not recognized. Returning 'New to model'.")
+                st.success("Predicted Category: New to model")
+                return
+            if scopes not in label_encoders["scopes"].classes_:
+                st.warning(
+                    f"Scope '{scopes}' is not recognized. Returning 'New to model'.")
+                st.success("Predicted Category: New to model")
+                return
+
             # Encode and scale the input data
             input_data = [[
                 label_encoders["speciesName"].transform([species_name])[0],
@@ -39,7 +56,6 @@ def main():
             st.success(f"Predicted Category: {predicted_category}")
 
         except Exception as e:
-            # If error occurs (e.g., unseen labels), return "New to model"
             st.warning(f"Prediction failed: {e}. Returning 'New to model'.")
             st.success("Predicted Category: New to model")
 
@@ -58,6 +74,18 @@ def main():
                 # Apply encoding and scaling for each row
                 for idx, row in df.iterrows():
                     try:
+                        # Check for unseen labels and display a warning if any
+                        if row["speciesName"] not in label_encoders["speciesName"].classes_:
+                            df.at[idx, "Predicted Category"] = "New to model"
+                            continue
+                        if row["systems"] not in label_encoders["systems"].classes_:
+                            df.at[idx, "Predicted Category"] = "New to model"
+                            continue
+                        if row["scopes"] not in label_encoders["scopes"].classes_:
+                            df.at[idx, "Predicted Category"] = "New to model"
+                            continue
+
+                        # Encode and scale the input data
                         input_data = [[
                             label_encoders["speciesName"].transform(
                                 [row["speciesName"]])[0],
@@ -76,7 +104,7 @@ def main():
                         df.at[idx, "Predicted Category"] = predicted_category
 
                     except Exception as e:
-                        # If error occurs, assign "New to model"
+                        # Handle errors by assigning "New to model"
                         df.at[idx, "Predicted Category"] = "New to model"
                         continue
 
