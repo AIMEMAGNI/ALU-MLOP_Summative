@@ -15,45 +15,48 @@ def retrain_model(uploaded_file):
     st.write("Preview of Uploaded Data:")
     st.dataframe(df.head())
 
-    # Define new encoders and scaler
-    new_label_encoders = {}
-    new_scaler = StandardScaler()
+    # Rename columns to match expected names
+    expected_columns = ['speciesName', 'systems', 'scopes', 'Category']
+    df.columns = expected_columns
 
-    # Encode categorical columns using new encoders
-    for column in df.select_dtypes(include=['object']).columns:
-        # Fit new label encoder to each categorical column
+    # Handle missing values: we'll replace missing numeric values with the median and categorical ones with a placeholder
+    for column in df.columns:
+        if df[column].dtype == 'object':
+            # For categorical columns, fill missing values with a placeholder like 'unknown'
+            df[column].fillna('unknown', inplace=True)
+        else:
+            # For numeric columns, fill missing values with the median
+            df[column].fillna(df[column].median(), inplace=True)
+
+    # Encode categorical columns using LabelEncoder
+    new_label_encoders = {}
+    for column in ['speciesName', 'systems', 'scopes']:
         encoder = LabelEncoder()
+        # Fit the encoder on the data and transform it
         df[column] = encoder.fit_transform(df[column].astype(str))
         new_label_encoders[column] = encoder
         st.write(f"Column '{column}' encoded successfully.")
 
     # Prepare the data for training
-    # Ignore errors if 'Category' column is missing
-    X = df.drop("Category", axis=1, errors='ignore')
-    # Use a fallback in case 'Category' column is missing
-    y = df.get("Category", pd.Series(np.nan))
+    # Drop the 'Category' column as it is the target variable
+    X = df.drop("Category", axis=1)
+    y = df["Category"]
 
-    # Ensure X and y are not empty
-    if X.empty or y.empty:
-        raise ValueError(
-            "The dataset must contain features and target column 'Category'.")
-
-    # Check if all features are numeric (ensure proper encoding)
+    # Ensure all data is numeric and ready for scaling
     if not all(X.dtypes.apply(lambda x: x in ['int64', 'float64'])):
         raise ValueError(
             "Some columns still contain non-numeric data after encoding.")
 
-    # Scale the features using the new scaler
-    X_scaled = new_scaler.fit_transform(X)
+    # Scale the features using StandardScaler
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X)
 
     # Retrain the model
     model.fit(X_scaled, y, epochs=10, batch_size=32)
 
-    # Save updated model
+    # Save the updated model, scaler, and label encoders
     model.save("retrained_model1_simple.h5")
-
-    # Save the new label encoders and scaler
-    joblib.dump(new_scaler, "new_scaler.pkl")
+    joblib.dump(scaler, "new_scaler.pkl")
     joblib.dump(new_label_encoders, "new_label_encoders.pkl")
 
     return "Retraining completed successfully!"
