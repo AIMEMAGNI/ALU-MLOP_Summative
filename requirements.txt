@@ -6,9 +6,6 @@ botocore==1.31.35
 cachetools==5.3.2
 certifi==2023.5.7
 cffi==1.16.0
-charset-normalizer==3.2.0
-click==8.1.6
-colorama==0.4.6
 fastapi==0.101.1
 ffmpy==0.3.1
 filelock==3.12.2
@@ -31,7 +28,7 @@ jsonschema==4.19.0
 keras==3.6.0
 langchain==0.0.208
 matplotlib==3.7.2
-numpy==1.23.5
+numpy==1.26.4
 openai==0.27.4
 openpyxl==3.1.2
 pandas==1.5.3
