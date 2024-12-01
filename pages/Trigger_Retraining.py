@@ -90,7 +90,7 @@ def main():
 
             st.success(result)
 
-        except Exception as e:
+        except Exception:
             # Introduce a short delay (2 seconds)
             time.sleep(8)
 
